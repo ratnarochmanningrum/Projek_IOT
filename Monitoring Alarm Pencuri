@@ -1,0 +1,108 @@
+//Define variabel
+#define trigerPin 12 
+#define echoPin 13
+#define ledPin 2
+#define speakerPin 15
+#define pitch 262
+#define CM_TO_INCH 0.393701
+
+long duration;
+float distance;
+float distanceInch;
+
+//Menghubungkan ke WIFI
+#include <WiFi.h>
+
+const char* SSID = "Wokwi-GUEST";
+const char* PASS = "";
+
+WiFiClient ratnarochma;
+
+//memakai librarythingspeak
+#include <ThingSpeak.h>
+
+unsigned long ChannelID = 1996387;
+const char * writeAPI = "MRSWVW406VMOJMLB";
+
+void setup(){
+  //Setup untuk sesnor
+  Serial.begin(115200);
+  pinMode(trigerPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  //Setup untuk spiker
+  pinMode(speakerPin, OUTPUT);
+
+  //Setup untuk LED
+  pinMode(ledPin, OUTPUT);
+
+  //Scane WiFi
+  Serial.println("Scan Wifi...");
+  int networks = WiFi.scanNetworks();
+  if(networks == 0){
+    Serial.println("WiFi Tidak Tersambung!!!");
+  }
+  else{
+    Serial.print(networks);
+    Serial.println("WiFi Tersambung!!!");
+    for(int i = 0; i < networks; i++)
+      Serial.println(WiFi.SSID());
+      delay(5);
+  }
+
+  //Menyambungkan WiFI
+  WiFi.begin(SSID, PASS);
+  while (WiFi.status() != WL_CONNECTED){
+    delay(100);
+    Serial.println(".");
+  }
+  Serial.println("WiFi Tersambung!");
+  Serial.println(WiFi.localIP());
+
+  //Memulai program thingspeak
+  ThingSpeak.begin(ratnarochma);
+
+}
+
+void loop(){
+  //Looping sensor (membuat sensor)
+  digitalWrite(trigerPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigerPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigerPin, LOW);
+
+  //Membuat durasi
+  duration = pulseIn(echoPin, HIGH);
+
+  //Mengkalkulasi jarak
+  distance = (duration/2) * 0.0343;
+
+  //Convert to inches
+  distanceInch = distance * CM_TO_INCH;
+
+  //Concider max width og the door = 200 cm
+  if (distance>20){
+    digitalWrite(ledPin, HIGH);
+    delay(1000);
+
+    digitalWrite(ledPin, LOW);
+    delay(100);
+  }
+  else{
+    digitalWrite(ledPin, LOW);
+  }
+
+  int x = ThingSpeak.writeField (ChannelID, 1, distance, writeAPI);
+
+  //Mengambil data dari thgingspeak
+  if (distance>20){
+    Serial.println("Waspadaa!!!!");
+    Serial.println("Jarak(cm) : " + String(distance));
+  }
+  else{
+    Serial.println("AMAN");
+  }
+
+  delay(1000);
+}
